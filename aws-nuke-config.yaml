@@ -37,6 +37,9 @@ accounts:
       IAMRole:
         - "OrganizationAccountAccessRole"
         - "AWSCloudFormationStackSetExecutionRole"
+        - "NukeAccountCloudWatchScheduleRole"
+        - "NukeAccountProjectRole"
+        - "NukeThisAccountRole"
         - property: "tag:Permanent"
           value: "True"
       IAMRolePolicy:
@@ -48,3 +51,7 @@ accounts:
         - "NukeRole -> AdministratorAccess"
         - property: "tag:Permanent"
           value: "True"
+      CodeBuildProject:
+        - "NukeScriptProject"
+      CloudwatchEventsRules:
+        - "NukeAccountCloudWatchSchedule"

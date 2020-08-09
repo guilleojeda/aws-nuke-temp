@@ -1,13 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: 
   This template creates a CodeBuild Project that runs aws-nuke on this account
-Parameters:
-  BucketName:
-    Description: The name of the S3 bucket where aws-nuke-config.yaml is located
-    Type: String
-  AssumeRoleName:
-    Description: The name of the IAM role to be assumed. Must have permissions to nuke this account
-    Type: String
 
 Resources:
   NukeAccountCloudWatchScheduleRole:
@@ -31,9 +24,6 @@ Resources:
                 Effect: Allow
                 Action: codebuild:StartBuild
                 Resource: !Sub arn:aws:codebuild:us-west-2:${AWS::AccountId}:project/NukeAccount-${AWS::StackName}
-    Tags:
-      - Key: "Permanent"
-        Value: "True"
 
   NukeAccountProjectRole:
     Type: AWS::IAM::Role
@@ -70,12 +60,32 @@ Resources:
               -
                 Effect: Allow
                 Action: sts:AssumeRole
-                Resource: !Sub arn:aws:iam::*:role/${AssumeRoleName}
-    Tags:
-      - Key: "Permanent"
-        Value: "True"
+                Resource: !Sub arn:aws:iam::*:role/nukethisaccountrole
 
-  NukeScriptProject:
+  NukeThisAccountRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        -
+         PolicyName: NukeThisAccountAssumeRolePolicy
+         PolicyDocument:
+           Version: 2012-10-17
+           Statement:
+              -
+                Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !Sub arn:aws:iam::*:role/nukethisaccountrole
+
+  NukeAccountProject:
     Type: AWS::CodeBuild::Project
     Properties:
       Artifacts:
@@ -107,9 +117,9 @@ Resources:
             build:
               commands:
                 - account_id=$(aws sts get-caller-identity --query Account --output text)
-                - aws s3 cp s3://${BucketName}/aws-nuke-config.yaml .
+                - aws s3 cp s3://nukeaccount-$account_id/aws-nuke-config.yaml .
                 - echo "Assuming Role for this account";
-                - aws sts assume-role --role-arn arn:aws:iam::$account_id:role/${AssumeRoleName} --role-session-name account-$account_id --query "Credentials" > $account_id.json;
+                - aws sts assume-role --role-arn arn:aws:iam::$account_id:role/nukethisaccountrole --role-session-name account-$account_id --query "Credentials" > $account_id.json;
                 - cat $account_id.json
                 - ACCESS_KEY_ID=$(cat $account_id.json |jq -r .AccessKeyId);
                 - SECRET_ACCESS_KEY=$(cat $account_id.json |jq -r .SecretAccessKey);
@@ -126,9 +136,6 @@ Resources:
               commands:
                 - cat aws-nuke.log
         Type: NO_SOURCE
-    Tags:
-      - Key: "Permanent"
-        Value: "True"
 
   NukeAccountCloudWatchSchedule:
     Type: AWS::Events::Rule
@@ -143,6 +150,3 @@ Resources:
         Arn: !GetAtt NukeAccountProject.Arn
         RoleArn: !GetAtt NukeAccountCloudWatchScheduleRole.Arn
         Id: NukeAccountId
-    Tags:
-      - Key: "Permanent"
-        Value: "True"
