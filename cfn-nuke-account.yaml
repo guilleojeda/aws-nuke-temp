@@ -23,7 +23,7 @@ Resources:
               -
                 Effect: Allow
                 Action: codebuild:StartBuild
-                Resource: !Sub arn:aws:codebuild:us-west-2:${AWS::AccountId}:project/NukeAccount-${AWS::StackName}
+                Resource: !Sub arn:aws:codebuild:us-east-1:${AWS::AccountId}:project/NukeAccount-${AWS::StackName}
 
   NukeAccountProjectRole:
     Type: AWS::IAM::Role
@@ -50,8 +50,8 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource:
-                  - !Sub arn:aws:logs:us-west-2:${AWS::AccountId}:log-group:NukeAccount-${AWS::StackName}
-                  - !Sub arn:aws:logs:us-west-2:${AWS::AccountId}:log-group:NukeAccount-${AWS::StackName}:*
+                  - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-${AWS::StackName}
+                  - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-${AWS::StackName}:*
         -
          PolicyName: NukeAccountAssumeRolePolicy
          PolicyDocument:
@@ -60,9 +60,9 @@ Resources:
               -
                 Effect: Allow
                 Action: sts:AssumeRole
-                Resource: !Sub arn:aws:iam::*:role/nukethisaccountrole
+                Resource: !Sub ${NukeAccountRole.Arn}
 
-  NukeThisAccountRole:
+  NukeAccountRole:
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
@@ -72,19 +72,9 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: codebuild.amazonaws.com
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
             Action: sts:AssumeRole
-      Policies:
-        -
-         PolicyName: NukeThisAccountAssumeRolePolicy
-         PolicyDocument:
-           Version: 2012-10-17
-           Statement:
-              -
-                Effect: Allow
-                Action: sts:AssumeRole
-                Resource: !Sub arn:aws:iam::*:role/nukethisaccountrole
-
+                
   NukeAccountProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -111,20 +101,20 @@ Resources:
             install:
               commands:
                 - apt-get install jq
-                - wget https://github.com/rebuy-de/aws-nuke/releases/download/v2.10.0/aws-nuke-v2.10.0-linux-amd64
+                - wget -q https://github.com/rebuy-de/aws-nuke/releases/download/v2.10.0/aws-nuke-v2.10.0-linux-amd64
                 - mv aws-nuke-v2.10.0-linux-amd64 /bin/aws-nuke
                 - chmod +x /bin/aws-nuke
             build:
               commands:
                 - account_id=$(aws sts get-caller-identity --query Account --output text)
-                - aws s3 cp s3://nukeaccount-$account_id/aws-nuke-config.yaml .
+                - aws s3 cp s3://nukethisaccount-$account_id/aws-nuke-config.yaml .
                 - echo "Assuming Role for this account";
-                - aws sts assume-role --role-arn arn:aws:iam::$account_id:role/nukethisaccountrole --role-session-name account-$account_id --query "Credentials" > $account_id.json;
+                - aws sts assume-role --role-arn ${NukeAccountRole.Arn} --role-session-name account-$account_id --query "Credentials" > $account_id.json;
                 - cat $account_id.json
                 - ACCESS_KEY_ID=$(cat $account_id.json |jq -r .AccessKeyId);
                 - SECRET_ACCESS_KEY=$(cat $account_id.json |jq -r .SecretAccessKey);
                 - SESSION_TOKEN=$(cat $account_id.json |jq -r .SessionToken);
-                - sed -i -e "s/000000000000/$account_id/g" $account_id.yaml;
+                - sed -i -e "s/000000000000/$account_id/g" aws-nuke-config.yaml;
                 - echo "Configured aws-nuke-config.yaml";
                 - echo "Nuking this account";
                 - # TODO: Add --no-dry-run flag for Production
