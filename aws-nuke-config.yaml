@@ -21,11 +21,19 @@ regions:
 account-blacklist:
 - 999999999999 #dummy because this field is required
 
+resource-types:
+  # don't nuke IAM users
+  excludes:
+  - IAMSAMLProvider
+
 accounts:
   000000000000:
     filters:
       CloudFormationStack:
         - "StackSetExecutionRoleStack"
+        - "NukeThisAccount"
+        - type: glob
+          value: "*NukeAccount*"
         - property: "tag:Permanent"
           value: "True"
       IAMGroup:
@@ -40,18 +48,48 @@ accounts:
         - "NukeAccountCloudWatchScheduleRole"
         - "NukeAccountProjectRole"
         - "NukeThisAccountRole"
+        - type: glob
+          value: "*AWSReservedSSO*"
+        - type: glob
+          value: "*AWSServiceRole*"
+        - type: glob
+          value: "*NukeAccount*"
         - property: "tag:Permanent"
           value: "True"
       IAMRolePolicy:
+        - "OrganizationAccountAccessRole"
+        - type: glob
+          value: "*NukeAccount*"
         - property: "tag:Permanent"
           value: "True"
       IAMRolePolicyAttachment:
         - "AWSCloudFormationStackSetExecutionRole -> AdministratorAccess"
         - "OrganizationAccountAccessRole -> AdministratorAccess"
-        - "NukeRole -> AdministratorAccess"
+        - type: glob
+          value: "*AWSReservedSSO*"
+        - type: glob
+          value: "*AWSServiceRole*"
+        - type: glob
+          value: "*NukeAccount*"
         - property: "tag:Permanent"
           value: "True"
       CodeBuildProject:
-        - "NukeScriptProject"
+        - type: glob
+          value: "*NukeAccount*"
+      CloudWatchLogsLogGroup:
+        - type: glob
+          value: "*NukeAccount*"
       CloudwatchEventsRules:
-        - "NukeAccountCloudWatchSchedule"
+        - type: glob
+          value: "*NukeAccount*"
+      CloudWatchEventsTarget:
+        - type: glob
+          value: "*NukeAccount*"
+      S3Object:
+        - property: Bucket
+          type: glob
+          value: "s3://nukeaccount-*"
+      S3Bucket:
+        - type: glob
+          value: "s3://nukeaccount-*"
+      
