@@ -3,7 +3,7 @@ A CloudFormation way to deploy and schedule aws-nuke in your organization
 
 #Current features
 - A CloudFormation template to deploy this in any account, with no configuration required (except for aws-nuke-config)
-- An aws-nuke-config.yaml file with preset configurations to prevent aws-nuke from deleting this stack and its resources and any AWS SSO resources.
+- An aws-nuke-config.yaml file with preset configurations to prevent aws-nuke from deleting this stack and its resources and any AWS SSO resources. (actually I found a bug on this)
 - A CodeBuild project is created that allows you to run aws-nuke in dry run mode with one click (dry run = it doesn't delete anything)
 
 #Requirements
