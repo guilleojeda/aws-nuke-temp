@@ -107,7 +107,7 @@ Resources:
             build:
               commands:
                 - account_id=$(aws sts get-caller-identity --query Account --output text)
-                - aws s3 cp s3://nukethisaccount-$account_id/aws-nuke-config.yaml .
+                - aws s3 cp s3://nukeaccount-$account_id/aws-nuke-config.yaml .
                 - echo "Assuming Role for this account";
                 - aws sts assume-role --role-arn ${NukeAccountRole.Arn} --role-session-name account-$account_id --query "Credentials" > $account_id.json;
                 - cat $account_id.json
