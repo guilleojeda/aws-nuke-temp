@@ -57,7 +57,7 @@ accounts:
         - property: "tag:Permanent"
           value: "True"
       IAMRolePolicy:
-        - "OrganizationAccountAccessRole"
+        - "OrganizationAccountAccessRole -> AdministratorAccess"
         - type: glob
           value: "*NukeAccount*"
         - property: "tag:Permanent"
@@ -79,7 +79,7 @@ accounts:
       CloudWatchLogsLogGroup:
         - type: glob
           value: "*NukeAccount*"
-      CloudwatchEventsRules:
+      CloudwatchEventsRule:
         - type: glob
           value: "*NukeAccount*"
       CloudWatchEventsTarget:
@@ -88,7 +88,7 @@ accounts:
       S3Object:
         - property: Bucket
           type: glob
-          value: "s3://nukeaccount-*"
+          value: "nukeaccount-*"
       S3Bucket:
         - type: glob
           value: "s3://nukeaccount-*"
