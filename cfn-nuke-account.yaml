@@ -2,6 +2,29 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: 
   This template creates a CodeBuild Project that runs aws-nuke on this account
 
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    -
+      Label:
+        default: "General"
+      Parameters:
+        - ScheduleExpression
+        - NoDryRunEnabled
+
+Parameters:
+  ScheduleExpression:
+    Description: "Cron schedule expression. Reference: https://crontab.guru"
+    Type: String
+    Default: "cron(0 7 ? * 1-5 *)"
+  NoDryRunEnabled:
+    Description: "ENABLE/DISABLE No Dry Run (Careful!)"
+    Type: String
+    Default: "DISABLED"
+    AllowedValues:
+      - ENABLED
+      - DISABLED
+
 Resources:
   NukeAccountCloudWatchScheduleRole:
     Type: AWS::IAM::Role
@@ -23,7 +46,7 @@ Resources:
               -
                 Effect: Allow
                 Action: codebuild:StartBuild
-                Resource: !Sub arn:aws:codebuild:us-east-1:${AWS::AccountId}:project/NukeAccount-${AWS::StackName}
+                Resource: !Sub ${NukeAccountNoDryRunProject.Arn}
 
   NukeAccountProjectRole:
     Type: AWS::IAM::Role
@@ -50,8 +73,8 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource:
-                  - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-${AWS::StackName}
-                  - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-${AWS::StackName}:*
+                  - !Sub ${NukeAccountNoDryRunProject.LogsConfig.CloudWatchLogs.Arn} #arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-${AWS::StackName}
+                  - !Sub ${NukeAccountNoDryRunProject.LogsConfig.CloudWatchLogs.Arn}:* #arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-${AWS::StackName}:*
         -
          PolicyName: NukeAccountAssumeRolePolicy
          PolicyDocument:
@@ -75,7 +98,7 @@ Resources:
               AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
             Action: sts:AssumeRole
                 
-  NukeAccountProject:
+  NukeAccountNoDryRunProject:
     Type: AWS::CodeBuild::Project
     Properties:
       Artifacts:
@@ -90,9 +113,9 @@ Resources:
         Type: LINUX_CONTAINER
       LogsConfig:
         CloudWatchLogs:
-          GroupName: !Sub "NukeAccount-${AWS::StackName}"
+          GroupName: !Sub "NukeAccount-NoDryRun-CAREFUL"
           Status: ENABLED
-      Name: !Sub "NukeAccount-${AWS::StackName}"
+      Name: !Sub "NukeAccount-NoDryRun-CAREFUL"
       ServiceRole: !GetAtt NukeAccountProjectRole.Arn
       Source:
         BuildSpec: !Sub |
@@ -116,12 +139,64 @@ Resources:
                 - SESSION_TOKEN=$(cat $account_id.json |jq -r .SessionToken);
                 - sed -i -e "s/000000000000/$account_id/g" aws-nuke-config.yaml;
                 - echo "Configured aws-nuke-config.yaml";
-                - echo "Nuking this account";
+                - echo "Actually nuking this account";
+                - # CAREFUL: This is using the flag --no-dry-run
+                - aws-nuke --no-dry-run -c aws-nuke-config.yaml --force --access-key-id $ACCESS_KEY_ID --secret-access-key $SECRET_ACCESS_KEY --session-token $SESSION_TOKEN |tee -a aws-nuke.log;
+                - nuke_pid=$!;
+                - wait $nuke_pid;
+                - echo "Account successfully actually nuked"
+            post_build:
+              commands:
+                - cat aws-nuke.log
+        Type: NO_SOURCE
+
+  NukeAccountDryRunProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      BadgeEnabled: false
+      Description: Builds a container to run AWS Nuke in this account
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/docker:18.09.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      LogsConfig:
+        CloudWatchLogs:
+          GroupName: !Sub "NukeAccount-DryRun"
+          Status: ENABLED
+      Name: !Sub "NukeAccount-DryRun"
+      ServiceRole: !GetAtt NukeAccountProjectRole.Arn
+      Source:
+        BuildSpec: !Sub |
+          version: 0.2
+          phases:
+            install:
+              commands:
+                - apt-get install jq
+                - wget -q https://github.com/rebuy-de/aws-nuke/releases/download/v2.10.0/aws-nuke-v2.10.0-linux-amd64
+                - mv aws-nuke-v2.10.0-linux-amd64 /bin/aws-nuke
+                - chmod +x /bin/aws-nuke
+            build:
+              commands:
+                - account_id=$(aws sts get-caller-identity --query Account --output text)
+                - aws s3 cp s3://nukeaccount-$account_id/aws-nuke-config.yaml .
+                - echo "Assuming Role for this account";
+                - aws sts assume-role --role-arn ${NukeAccountRole.Arn} --role-session-name account-$account_id --query "Credentials" > $account_id.json;
+                - cat $account_id.json
+                - ACCESS_KEY_ID=$(cat $account_id.json |jq -r .AccessKeyId);
+                - SECRET_ACCESS_KEY=$(cat $account_id.json |jq -r .SecretAccessKey);
+                - SESSION_TOKEN=$(cat $account_id.json |jq -r .SessionToken);
+                - sed -i -e "s/000000000000/$account_id/g" aws-nuke-config.yaml;
+                - echo "Configured aws-nuke-config.yaml";
+                - echo "Pretending to nuke this account (i.e. this is a dry run)";
                 - # TODO: Add --no-dry-run flag for Production
                 - aws-nuke -c aws-nuke-config.yaml --force --access-key-id $ACCESS_KEY_ID --secret-access-key $SECRET_ACCESS_KEY --session-token $SESSION_TOKEN |tee -a aws-nuke.log;
                 - nuke_pid=$!;
                 - wait $nuke_pid;
-                - echo "Account successfully nuked"
+                - echo "Account successfully pretended to be nuked"
             post_build:
               commands:
                 - cat aws-nuke.log
@@ -132,11 +207,11 @@ Resources:
     Properties:
       Name: !Sub NukeAccountCloudWatchSchedule-${AWS::StackName}
       Description: CloudWatch scheduled event that runs AWS Nuke on this account
-      ScheduleExpression: cron(0 7 ? * 1-5 *)
-      State:  ENABLED
+      ScheduleExpression: !Ref ScheduleExpression
+      State:  !Ref NoDryRunEnabled
       RoleArn: !GetAtt NukeAccountCloudWatchScheduleRole.Arn
       Targets:
       -
-        Arn: !GetAtt NukeAccountProject.Arn
+        Arn: !GetAtt NukeAccountNoDryRunProject.Arn
         RoleArn: !GetAtt NukeAccountCloudWatchScheduleRole.Arn
         Id: NukeAccountId
