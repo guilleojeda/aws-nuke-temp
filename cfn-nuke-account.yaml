@@ -11,7 +11,7 @@ Metadata:
       Parameters:
         - ScheduleExpression
         - NoDryRunEnabled
-        - aws-nuke-version
+        - AwsNukeVersion
 
 Parameters:
   ScheduleExpression:
@@ -25,7 +25,7 @@ Parameters:
     AllowedValues:
       - ENABLED
       - DISABLED
-  aws-nuke-version:
+  AwsNukeVersion:
     Description: "aws-nuke version. Ref: https://github.com/rebuy-de/aws-nuke/releases"
     Type: String
     Default: "v2.14.0"
@@ -131,8 +131,8 @@ Resources:
             install:
               commands:
                 - apt-get install jq
-                - wget -q https://github.com/rebuy-de/aws-nuke/releases/download/${aws-nuke-version}/aws-nuke-${aws-nuke-version}-linux-amd64
-                - mv aws-nuke-${aws-nuke-version}-linux-amd64 /bin/aws-nuke
+                - wget -q https://github.com/rebuy-de/aws-nuke/releases/download/${AwsNukeVersion}/aws-nuke-${AwsNukeVersion}-linux-amd64
+                - mv aws-nuke-${AwsNukeVersion}-linux-amd64 /bin/aws-nuke
                 - chmod +x /bin/aws-nuke
             build:
               commands:
@@ -146,6 +146,7 @@ Resources:
                 - SESSION_TOKEN=$(cat $account_id.json |jq -r .SessionToken);
                 - sed -i -e "s/000000000000/$account_id/g" aws-nuke-config.yaml;
                 - echo "Configured aws-nuke-config.yaml";
+                - aws-nuke resource-types;
                 - echo "Actually nuking this account";
                 - # CAREFUL: This is using the flag --no-dry-run
                 - aws-nuke --no-dry-run -c aws-nuke-config.yaml --force --access-key-id $ACCESS_KEY_ID --secret-access-key $SECRET_ACCESS_KEY --session-token $SESSION_TOKEN |tee -a aws-nuke.log;
@@ -183,8 +184,8 @@ Resources:
             install:
               commands:
                 - apt-get install jq
-                - wget -q https://github.com/rebuy-de/aws-nuke/releases/download/${aws-nuke-version}/aws-nuke-${aws-nuke-version}-linux-amd64
-                - mv aws-nuke-${aws-nuke-version}-linux-amd64 /bin/aws-nuke
+                - wget -q https://github.com/rebuy-de/aws-nuke/releases/download/${AwsNukeVersion}/aws-nuke-${AwsNukeVersion}-linux-amd64
+                - mv aws-nuke-${AwsNukeVersion}-linux-amd64 /bin/aws-nuke
                 - chmod +x /bin/aws-nuke
             build:
               commands:
