@@ -11,6 +11,7 @@ Metadata:
       Parameters:
         - ScheduleExpression
         - NoDryRunEnabled
+        - aws-nuke-version
 
 Parameters:
   ScheduleExpression:
@@ -24,6 +25,10 @@ Parameters:
     AllowedValues:
       - ENABLED
       - DISABLED
+  aws-nuke-version:
+    Description: "aws-nuke version. Ref: https://github.com/rebuy-de/aws-nuke/releases"
+    Type: String
+    Default: "v2.14.0"
 
 Resources:
   NukeAccountCloudWatchScheduleRole:
@@ -73,8 +78,10 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource:
-                  - !Sub ${NukeAccountNoDryRunProject.LogsConfig.CloudWatchLogs.Arn} #arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-${AWS::StackName}
-                  - !Sub ${NukeAccountNoDryRunProject.LogsConfig.CloudWatchLogs.Arn}:* #arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-${AWS::StackName}:*
+                  - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-DryRun
+                  - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-DryRun:*
+                  - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-NoDryRun-CAREFUL
+                  - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:NukeAccount-NoDryRun-CAREFUL:*
         -
          PolicyName: NukeAccountAssumeRolePolicy
          PolicyDocument:
@@ -124,8 +131,8 @@ Resources:
             install:
               commands:
                 - apt-get install jq
-                - wget -q https://github.com/rebuy-de/aws-nuke/releases/download/v2.10.0/aws-nuke-v2.10.0-linux-amd64
-                - mv aws-nuke-v2.10.0-linux-amd64 /bin/aws-nuke
+                - wget -q https://github.com/rebuy-de/aws-nuke/releases/download/${aws-nuke-version}/aws-nuke-${aws-nuke-version}-linux-amd64
+                - mv aws-nuke-${aws-nuke-version}-linux-amd64 /bin/aws-nuke
                 - chmod +x /bin/aws-nuke
             build:
               commands:
@@ -176,8 +183,8 @@ Resources:
             install:
               commands:
                 - apt-get install jq
-                - wget -q https://github.com/rebuy-de/aws-nuke/releases/download/v2.10.0/aws-nuke-v2.10.0-linux-amd64
-                - mv aws-nuke-v2.10.0-linux-amd64 /bin/aws-nuke
+                - wget -q https://github.com/rebuy-de/aws-nuke/releases/download/${aws-nuke-version}/aws-nuke-${aws-nuke-version}-linux-amd64
+                - mv aws-nuke-${aws-nuke-version}-linux-amd64 /bin/aws-nuke
                 - chmod +x /bin/aws-nuke
             build:
               commands:
