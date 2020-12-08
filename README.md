@@ -1,5 +1,5 @@
 # aws-nuke-organization
-A CloudFormation way to deploy and schedule aws-nuke in your organization
+A CloudFormation way to deploy and schedule aws-nuke (https://github.com/rebuy-de/aws-nuke) in your organization
 
 #Current features
 - A CloudFormation template to deploy this in any account, with no configuration required (except for aws-nuke-config)
