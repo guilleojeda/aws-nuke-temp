@@ -22,6 +22,7 @@ A CloudFormation way to deploy and schedule aws-nuke in your organization
 - The bucket must contain the aws-nuke-config.yaml file
 
 #Upcoming features
+- Autogenerate aws-nuke-config.yaml with all resource types with a preset tag to keep them
 - A way to run aws-nuke --no-dry-run with one click (possibly another CodeBuild project?)
 - The cfn stack should create the S3 bucket and put there the aws-nuke-config.yaml file
 - Notifying about which resources will be deleted (initially just sending the Build logs) and allowing an admin to trigger the no-dry-run build from somewhere nice (e.g. through a lambda that can be invoked from maybe Api Gateway?)
