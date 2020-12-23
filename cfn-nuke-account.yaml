@@ -10,15 +10,16 @@ Metadata:
         default: "General"
       Parameters:
         - ScheduleExpression
-        - NoDryRunEnabled
+        - ScheduleNoDryRun
         - AwsNukeVersion
+        - DeletePrefix
 
 Parameters:
   ScheduleExpression:
-    Description: "Cron schedule expression. Reference: https://crontab.guru"
+    Description: "Cron schedule expression. Doesn't do anything if ScheduleNoDryRun is DISABLED Reference: https://crontab.guru"
     Type: String
     Default: "cron(0 7 ? * 1-5 *)"
-  NoDryRunEnabled:
+  ScheduleNoDryRun:
     Description: "ENABLE/DISABLE No Dry Run (Careful!)"
     Type: String
     Default: "DISABLED"
@@ -29,6 +30,10 @@ Parameters:
     Description: "aws-nuke version. Ref: https://github.com/rebuy-de/aws-nuke/releases"
     Type: String
     Default: "v2.14.0"
+  DeletePrefix:
+    Description: "Prefix of the name of resources that will be deleted"
+    Type: String
+    Default: "temp-"
 
 Resources:
   NukeAccountCloudWatchScheduleRole:
@@ -136,8 +141,9 @@ Resources:
                 - chmod +x /bin/aws-nuke
             build:
               commands:
+                - touch aws-nuke-config.yaml
+                - echo "---\nregions:\n- \"global\"\n- \"eu-north-1\"\n- \"ap-south-1\"\n- \"eu-west-3\"\n- \"eu-west-2\"\n- \"eu-west-1\"\n- \"ap-northeast-2\"\n- \"ap-northeast-1\"\n- \"sa-east-1\"\n- \"ca-central-1\"\n- \"ap-southeast-1\"\n- \"ap-southeast-2\"\n- \"eu-central-1\"\n- \"us-east-1\"\n- \"us-east-2\"\n- \"us-west-1\"\n- \"us-west-2\"\n\naccount-blacklist:\n- 999999999999\n\nresource-types:\n  excludes:\n  - IAMSAMLProvider\n\naccounts:\n  000000000000:\n    filters:\n" >> aws-nuke-config.yaml
                 - account_id=$(aws sts get-caller-identity --query Account --output text)
-                - aws s3 cp s3://nukeaccount-$account_id/aws-nuke-config.yaml .
                 - echo "Assuming Role for this account";
                 - aws sts assume-role --role-arn ${NukeAccountRole.Arn} --role-session-name account-$account_id --query "Credentials" > $account_id.json;
                 - cat $account_id.json
@@ -145,8 +151,9 @@ Resources:
                 - SECRET_ACCESS_KEY=$(cat $account_id.json |jq -r .SecretAccessKey);
                 - SESSION_TOKEN=$(cat $account_id.json |jq -r .SessionToken);
                 - sed -i -e "s/000000000000/$account_id/g" aws-nuke-config.yaml;
+                - for rt in $(aws-nuke resource-types); do echo "      $(echo $rt):\n      - property&#58; Name\n        type&#58; glob\n        value&#58; \"temp-*\"\n        invert&#58; true" >> aws-nuke-config.yaml; done;
+                - sed -i -e "s/&#58;/:/g" aws-nuke-config.yaml;
                 - echo "Configured aws-nuke-config.yaml";
-                - aws-nuke resource-types;
                 - echo "Actually nuking this account";
                 - # CAREFUL: This is using the flag --no-dry-run
                 - aws-nuke --no-dry-run -c aws-nuke-config.yaml --force --access-key-id $ACCESS_KEY_ID --secret-access-key $SECRET_ACCESS_KEY --session-token $SESSION_TOKEN |tee -a aws-nuke.log;
@@ -189,15 +196,18 @@ Resources:
                 - chmod +x /bin/aws-nuke
             build:
               commands:
+                - touch aws-nuke-config.yaml
+                - echo "---\nregions:\n- \"global\"\n- \"eu-north-1\"\n- \"ap-south-1\"\n- \"eu-west-3\"\n- \"eu-west-2\"\n- \"eu-west-1\"\n- \"ap-northeast-2\"\n- \"ap-northeast-1\"\n- \"sa-east-1\"\n- \"ca-central-1\"\n- \"ap-southeast-1\"\n- \"ap-southeast-2\"\n- \"eu-central-1\"\n- \"us-east-1\"\n- \"us-east-2\"\n- \"us-west-1\"\n- \"us-west-2\"\n\naccount-blacklist:\n- 999999999999\n\nresource-types:\n  excludes:\n  - IAMSAMLProvider\n\naccounts:\n  000000000000:\n    filters:\n" >> aws-nuke-config.yaml
                 - account_id=$(aws sts get-caller-identity --query Account --output text)
-                - aws s3 cp s3://nukeaccount-$account_id/aws-nuke-config.yaml .
                 - echo "Assuming Role for this account";
-                - aws sts assume-role --role-arn ${NukeAccountRole.Arn} --role-session-name account-$account_id --query "Credentials" > $account_id.json;
+                - aws sts assume-role --role-arn arn:aws:iam::462412062223:role/NukeThisAccount-NukeAccountRole-WXL629JNEGN1 --role-session-name account-$account_id --query "Credentials" > $account_id.json;
                 - cat $account_id.json
                 - ACCESS_KEY_ID=$(cat $account_id.json |jq -r .AccessKeyId);
                 - SECRET_ACCESS_KEY=$(cat $account_id.json |jq -r .SecretAccessKey);
                 - SESSION_TOKEN=$(cat $account_id.json |jq -r .SessionToken);
                 - sed -i -e "s/000000000000/$account_id/g" aws-nuke-config.yaml;
+                - for rt in $(aws-nuke resource-types); do echo "      $(echo $rt):\n      - property&#58; Name\n        type&#58; glob\n        value&#58; \"temp-*\"\n        invert&#58; true" >> aws-nuke-config.yaml; done;
+                - sed -i -e "s/&#58;/:/g" aws-nuke-config.yaml;
                 - echo "Configured aws-nuke-config.yaml";
                 - echo "Pretending to nuke this account (i.e. this is a dry run)";
                 - # TODO: Add --no-dry-run flag for Production
@@ -216,7 +226,7 @@ Resources:
       Name: !Sub NukeAccountCloudWatchSchedule-${AWS::StackName}
       Description: CloudWatch scheduled event that runs AWS Nuke on this account
       ScheduleExpression: !Ref ScheduleExpression
-      State:  !Ref NoDryRunEnabled
+      State:  !Ref ScheduleNoDryRun
       RoleArn: !GetAtt NukeAccountCloudWatchScheduleRole.Arn
       Targets:
       -
