@@ -4,6 +4,8 @@ A CloudFormation way to deploy and schedule aws-nuke (https://github.com/rebuy-d
 #Current features
 - A CloudFormation template to deploy this in any account, with no configuration required
 - A CodeBuild project is created that allows you to run aws-nuke in dry run mode with one click (dry run = it doesn't delete anything)
+- A seprate CodeBuild project is created that runs aws-nuke with --no-dry-run flag (it actually deletes resources, so be careful)
+- The --no-dry-run project can be scheduled to run periodically
 
 #Steps to use
 - Clone repo
