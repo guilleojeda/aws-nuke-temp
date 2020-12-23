@@ -92,4 +92,3 @@ accounts:
       S3Bucket:
         - type: glob
           value: "s3://nukeaccount-*"
-      
