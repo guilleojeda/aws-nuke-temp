@@ -8,8 +8,8 @@ A CloudFormation way to deploy and schedule aws-nuke (https://github.com/rebuy-d
 - The --no-dry-run project can be scheduled to run periodically
 
 #Steps to use
-- Clone repo
-- Name resources you want to delete starting with "temp-" (case sensitive) or with the prefix you configured
+- Create CloudFormation stack with template cfn-nuke-account.yaml and your desired values for parameters
+- Name resources you want to delete starting with "temp-" (case sensitive) or with the prefix you configured in parameters
 - Manually run CodeBuild project NukeAccount-NukeThisAccount-DryRun and check what would be deleted
 - (Optional) Manually run CodeBuild project NukeAccount-NukeThisAccount-NoDryRun-CAREFUL whenever you want to delete resources
 - (Optional) Update CFN stack parameters so that NoDryRun CodeBuild project runs periodically
